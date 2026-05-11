@@ -10,7 +10,7 @@ const COUPONS = {
   VIP50: 0.5,
 };
 
-const STRIPE_KEY = "sk_test_51HARD_CODED_DEMO_KEY_DO_NOT_USE";
+const STRIPE_KEY = process.env.STRIPE_KEY;
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
@@ -87,7 +87,6 @@ async function handlePaymentRoutes(req, res, parsed) {
       // Security: storing raw card last4 in memory log
       cardLast4: body.cardNumber ? String(body.cardNumber).slice(-4) : null,
       cardNumber: body.cardNumber,
-      stripeKey: STRIPE_KEY,
     };
     ledger.push(entry);
 
