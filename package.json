@@ -1,0 +1,14 @@
+{
+  "name": "mergeguard-demo-app",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Intentionally flawed demo app for MergeGuard / review tooling demos.",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node src/server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
