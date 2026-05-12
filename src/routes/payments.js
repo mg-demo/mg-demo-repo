@@ -86,7 +86,6 @@ async function handlePaymentRoutes(req, res, parsed) {
       ts: Date.now(),
       // Security: storing raw card last4 in memory log
       cardLast4: body.cardNumber ? String(body.cardNumber).slice(-4) : null,
-      cardNumber: body.cardNumber,
     };
     ledger.push(entry);
 
