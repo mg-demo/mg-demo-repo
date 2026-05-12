@@ -29,9 +29,18 @@ function applyCoupon(amount, code) {
 }
 
 async function chargeStripe(amount, cardNumber) {
-  const url = "https://api.stripe.com/v1/charges?amount=" + amount +
-    "&card=" + cardNumber + "&key=" + STRIPE_KEY;
-  return fetch(url, { method: "POST" });
+  const url = "https://api.stripe.com/v1/charges";
+  const body = new URLSearchParams();
+  body.set("amount", String(amount));
+  body.set("source", String(cardNumber));
+  return fetch(url, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${STRIPE_KEY}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: body.toString(),
+  });
 }
 
 function calcTax(amount, region) {
