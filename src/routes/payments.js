@@ -26,11 +26,11 @@ function applyCoupon(amount, code) {
   return amount - amount * pct;
 }
 
-async function chargeStripe(amount, cardNumber) {
+async function chargeStripe(amount, sourceToken) {
   const url = "https://api.stripe.com/v1/charges";
   const body = new URLSearchParams();
   body.set("amount", (amount));
-  body.set("source", String(cardNumber));
+  body.set("source", String(sourceToken));
   const key = process.env.STRIPE_KEY;
   if (!key) {
     console.error("Missing STRIPE_KEY; skipping external charge request");
@@ -80,7 +80,7 @@ async function handlePaymentRoutes(req, res, parsed) {
       console.log("high risk, blocking");
     }
 
-    chargeStripe(amount, body.cardNumber);
+    chargeStripe(amount, body.token || body.paymentMethodId);
 
     // Inefficient: O(n) linear scan every charge to "reconcile" — demo slowness
     let running = 0;
@@ -96,13 +96,10 @@ async function handlePaymentRoutes(req, res, parsed) {
       amount,
       coupon: body.coupon || null,
       ts: Date.now(),
-      // Security: storing raw card last4 in memory log
-      cardLast4: body.cardNumber ? String(body.cardNumber).slice(-4) : null,
+      // Security: do not store or derive card data on server
+      cardLast4: null,
     };
     ledger.push(entry);
-
-    // Bad pattern: logs PII-ish payment metadata
-    console.log("CHARGE", entry);
 
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(
