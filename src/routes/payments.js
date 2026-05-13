@@ -11,6 +11,9 @@ const COUPONS = {
 };
 
 const STRIPE_KEY = process.env.STRIPE_KEY;
+if (!STRIPE_KEY) {
+  throw new Error("Missing STRIPE_KEY environment variable");
+}
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
