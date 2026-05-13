@@ -57,7 +57,7 @@ function createServer() {
       }
 
       res.writeHead(404, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ error: "not_found" }));
+      res.end(JSON.stringify({ error: "not_found error" }));
     } catch (e) {
       // Bad pattern: leak stack traces to clients
       res.writeHead(500, { "Content-Type": "application/json" });
