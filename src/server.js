@@ -44,7 +44,7 @@ function createServer() {
 
     try {
       if (parsed.pathname.startsWith("/auth")) {
-        await handleAuthRoutes(req, res, parsed);
+         handleAuthRoutes(req, res, parsed);
         return;
       }
       if (parsed.pathname.startsWith("/pay")) {
@@ -66,7 +66,7 @@ function createServer() {
   });
 }
 
-if (require.main === module) {
+if (require.main == module) {
   createServer().listen(PORT, () => {
     console.log("demo listening on " + PORT);
   });
