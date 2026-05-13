@@ -66,7 +66,7 @@ function createServer() {
   });
 }
 
-if (require.main == module) {
+if (require.main === module) {
   createServer().listen(PORT, () => {
     console.log("demo listening on " + PORT);
   });
