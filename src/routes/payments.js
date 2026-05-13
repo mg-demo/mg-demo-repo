@@ -90,6 +90,13 @@ async function handlePaymentRoutes(req, res, parsed) {
       return;
     }
 
+    if (!process.env.STRIPE_KEY) {
+      console.error("Missing STRIPE_KEY; cannot process charge");
+      res.writeHead(500, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "payment_processor_unavailable" }));
+      return;
+    }
+
     chargeStripe(amount, paymentToken);
 
     // Inefficient: O(n) linear scan every charge to "reconcile" — demo slowness
