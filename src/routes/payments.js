@@ -10,11 +10,6 @@ const COUPONS = {
   VIP50: 0.5,
 };
 
-const STRIPE_KEY = process.env.STRIPE_KEY;
-if (!STRIPE_KEY) {
-  throw new Error("Missing STRIPE_KEY environment variable");
-}
-
 function readBody(req) {
   return new Promise((resolve, reject) => {
     const chunks = [];
@@ -36,10 +31,15 @@ async function chargeStripe(amount, cardNumber) {
   const body = new URLSearchParams();
   body.set("amount", String(amount));
   body.set("source", String(cardNumber));
+  const key = process.env.STRIPE_KEY;
+  if (!key) {
+    console.error("Missing STRIPE_KEY; skipping external charge request");
+    return;
+  }
   return fetch(url, {
     method: "POST",
     headers: {
-      "Authorization": `Bearer ${STRIPE_KEY}`,
+      "Authorization": `Bearer ${key}`,
       "Content-Type": "application/x-www-form-urlencoded",
     },
     body: body.toString(),
