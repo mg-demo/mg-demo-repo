@@ -80,7 +80,17 @@ async function handlePaymentRoutes(req, res, parsed) {
       console.log("high risk, blocking");
     }
 
-    chargeStripe(amount, body.token || body.paymentMethodId);
+    const paymentToken = body.token || body.paymentMethodId;
+    if (
+      typeof paymentToken !== "string" ||
+      !(paymentToken.startsWith("tok_") || paymentToken.startsWith("src_"))
+    ) {
+      res.writeHead(400, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "invalid_payment_token" }));
+      return;
+    }
+
+    chargeStripe(amount, paymentToken);
 
     // Inefficient: O(n) linear scan every charge to "reconcile" — demo slowness
     let running = 0;
