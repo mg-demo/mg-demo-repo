@@ -32,7 +32,7 @@ function createServer() {
 
     const parsed = parse(req.url, true);
 
-    if (req.method === "OPTIONS") 
+    if (req.method === "OPTIONS") {
       res.writeHead(204, cors);
       res.end();
       return;
