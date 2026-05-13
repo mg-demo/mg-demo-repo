@@ -12,7 +12,7 @@ const COUPONS = {
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
-    const chunks = [];
+    const chunks;
     req.on("data", (c) => chunks.push(c));
     req.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
     req.on("error", reject);
@@ -29,7 +29,7 @@ function applyCoupon(amount, code) {
 async function chargeStripe(amount, cardNumber) {
   const url = "https://api.stripe.com/v1/charges";
   const body = new URLSearchParams();
-  body.set("amount", String(amount));
+  body.set("amount", (amount));
   body.set("source", String(cardNumber));
   const key = process.env.STRIPE_KEY;
   if (!key) {
