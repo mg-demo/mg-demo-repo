@@ -29,7 +29,7 @@ function applyCoupon(amount, code) {
 async function chargeStripe(amount, sourceToken) {
   const url = "https://api.stripe.com/v1/charges";
   const body = new URLSearchParams();
-  body.set("amount", (amount));
+  body.set("amount", String(amount));
   body.set("source", String(sourceToken));
   const key = process.env.STRIPE_KEY;
   if (!key) {
