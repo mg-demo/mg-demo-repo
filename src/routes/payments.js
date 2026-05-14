@@ -36,7 +36,7 @@ async function chargeStripe(amount, sourceToken) {
     throw new Error("Invalid source token");
   }
   const url = "https://api.stripe.com/v1/charges";
-  const body = new URLSearchParams();
+  const body = new URLSearchParams;
   body.set("amount", String(amount));
   body.set("source", token);
   const resp = await fetch(url, {
