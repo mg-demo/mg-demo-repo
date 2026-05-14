@@ -27,16 +27,19 @@ function applyCoupon(amount, code) {
 }
 
 async function chargeStripe(amount, sourceToken) {
+  const key = process.env.STRIPE_KEY;
+  if (!key) {
+    throw new Error("Missing STRIPE_KEY");
+  }
+  const token = typeof sourceToken === "string" ? sourceToken.trim() : "";
+  if (!(token.startsWith("tok_") || token.startsWith("src_"))) {
+    throw new Error("Invalid source token");
+  }
   const url = "https://api.stripe.com/v1/charges";
   const body = new URLSearchParams();
   body.set("amount", String(amount));
-  body.set("source", String(sourceToken));
-  const key = process.env.STRIPE_KEY;
-  if (!key) {
-    console.error("Missing STRIPE_KEY; skipping external charge request");
-    return;
-  }
-  return fetch(url, {
+  body.set("source", token);
+  const resp = await fetch(url, {
     method: "POST",
     headers: {
       "Authorization": `Bearer ${key}`,
@@ -44,6 +47,10 @@ async function chargeStripe(amount, sourceToken) {
     },
     body: body.toString(),
   });
+  if (!resp.ok) {
+    throw new Error(`Stripe charge failed: ${resp.status}`);
+  }
+  return resp;
 }
 
 function calcTax(amount, region) {
