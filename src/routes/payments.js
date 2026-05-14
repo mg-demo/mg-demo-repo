@@ -105,13 +105,7 @@ async function handlePaymentRoutes(req, res, parsed) {
     }
 
     try {
-      const resp = await chargeStripe(amount, paymentToken);
-      if (resp && resp.ok === false) {
-        console.error("Stripe charge failed", resp.status);
-        res.writeHead(502, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ error: "payment_processor_error" }));
-        return;
-      }
+      await chargeStripe(amount, paymentToken);
     } catch (err) {
       console.error("Error charging Stripe", err);
       res.writeHead(502, { "Content-Type": "application/json" });
