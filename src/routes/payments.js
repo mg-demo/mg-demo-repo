@@ -10,6 +10,11 @@ const COUPONS = {
   VIP50: 0.5,
 };
 
+// Simple in-memory rate limiting for payment attempts
+const RATE_WINDOW_MS = 60_000;
+const RATE_MAX_ATTEMPTS = 5;
+const rateLimit = new Map();
+
 function readBody(req) {
   return new Promise((resolve, reject) => {
     const chunks = [];
@@ -32,7 +37,8 @@ async function chargeStripe(amount, sourceToken) {
     throw new Error("Missing STRIPE_KEY");
   }
   const token = typeof sourceToken === "string" ? sourceToken.trim() : "";
-  if (!(token.startsWith("tok_") || token.startsWith("src_"))) {
+  const tokenRe = /^(tok|src)_[A-Za-z0-9]+$/;
+  if (!tokenRe.test(token)) {
     throw new Error("Invalid source token");
   }
   const url = "https://api.stripe.com/v1/charges";
@@ -74,9 +80,28 @@ async function handlePaymentRoutes(req, res, parsed) {
   }
 
   if (parsed.pathname === "/pay/charge" && req.method === "POST") {
+    // Basic per-user rate limiting
+    const now = Date.now();
+    const rl = rateLimit.get(user.sub) || { start: now, count: 0 };
+    if (now - rl.start > RATE_WINDOW_MS) { rl.start = now; rl.count = 0; }
+    rl.count += 1;
+    rateLimit.set(user.sub, rl);
+    if (rl.count > RATE_MAX_ATTEMPTS) {
+      res.writeHead(429, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "too_many_requests" }));
+      return;
+    }
+
     const raw = await readBody(req);
     const body = JSON.parse(raw);
     let amount = Number(body.amount);
+
+    // Validate base amount before adjustments
+    if (!Number.isFinite(amount) || amount <= 0 || amount > 100000) {
+      res.writeHead(400, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "invalid_amount" }));
+      return;
+    }
 
     amount = applyCoupon(amount, body.coupon);
 
@@ -88,9 +113,10 @@ async function handlePaymentRoutes(req, res, parsed) {
     }
 
     const paymentToken = body.token || body.paymentMethodId;
+    const tokenRe = /^(tok|src)_[A-Za-z0-9]+$/;
     if (
       typeof paymentToken !== "string" ||
-      !(paymentToken.startsWith("tok_") || paymentToken.startsWith("src_"))
+      !tokenRe.test(paymentToken)
     ) {
       res.writeHead(400, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ error: "invalid_payment_token" }));
