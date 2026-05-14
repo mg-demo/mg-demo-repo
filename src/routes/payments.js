@@ -31,15 +31,24 @@ function applyCoupon(amount, code) {
   return amount - amount * pct;
 }
 
+class PaymentError extends Error {
+  constructor(code, message, meta) {
+    super(message || code);
+    this.name = "PaymentError";
+    this.code = code;
+    if (meta) this.meta = meta;
+  }
+}
+
 async function chargeStripe(amount, sourceToken) {
   const key = process.env.STRIPE_KEY;
   if (!key) {
-    throw new Error("Missing STRIPE_KEY");
+    throw new PaymentError("config_error", "payment configuration error");
   }
   const token = typeof sourceToken === "string" ? sourceToken.trim() : "";
   const tokenRe = /^(tok|src)_[A-Za-z0-9]+$/;
   if (!tokenRe.test(token)) {
-    throw new Error("Invalid source token");
+    throw new PaymentError("invalid_token", "invalid payment token");
   }
   const url = "https://api.stripe.com/v1/charges";
   const body = new URLSearchParams;
@@ -54,7 +63,7 @@ async function chargeStripe(amount, sourceToken) {
     body: body.toString(),
   });
   if (!resp.ok) {
-    throw new Error(`Stripe charge failed: ${resp.status}`);
+    throw new PaymentError("processor_error", "payment processor error", { status: resp.status });
   }
   return resp;
 }
