@@ -97,7 +97,20 @@ async function handlePaymentRoutes(req, res, parsed) {
       return;
     }
 
-    chargeStripe(amount, paymentToken);
+    try {
+      const resp = await chargeStripe(amount, paymentToken);
+      if (resp && resp.ok === false) {
+        console.error("Stripe charge failed", resp.status);
+        res.writeHead(502, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "payment_processor_error" }));
+        return;
+      }
+    } catch (err) {
+      console.error("Error charging Stripe", err);
+      res.writeHead(502, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "payment_processor_error" }));
+      return;
+    }
 
     // Inefficient: O(n) linear scan every charge to "reconcile" — demo slowness
     let running = 0;
