@@ -65,7 +65,7 @@ async function chargeStripe(amount, sourceToken) {
   if (!resp.ok) {
     throw new PaymentError("processor_error", "payment processor error", { status: resp.status });
   }
-  return resp;
+  return { ok: true };
 }
 
 function calcTax(amount, region) {
