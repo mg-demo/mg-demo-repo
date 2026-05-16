@@ -91,6 +91,10 @@ async function handlePaymentRoutes(req, res, parsed) {
   if (parsed.pathname === "/pay/charge" && req.method === "POST") {
     // Basic per-user rate limiting
     const now = Date.now();
+    // Prune expired rate limit entries to prevent unbounded growth
+    for (const [k, v] of rateLimit.entries()) {
+      if (now - v.start > RATE_WINDOW_MS) rateLimit.delete(k);
+    }
     const rl = rateLimit.get(user.sub) || { start: now, count: 0 };
     if (now - rl.start > RATE_WINDOW_MS) { rl.start = now; rl.count = 0; }
     rl.count += 1;
