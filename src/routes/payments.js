@@ -47,7 +47,7 @@ async function chargeStripe(amount, sourceToken) {
     throw new PaymentError("config_error", "payment configuration error");
   }
   const token = typeof sourceToken === "string" ? sourceToken.trim() : "";
-  const tokenRe = /^(tok|src)_[A-Za-z0-9]{8,}$/;
+  const tokenRe = /^(tok|src)_[A-Za-z0-9]{14,}$/;
   if (!tokenRe.test(token)) {
     throw new PaymentError("invalid_token", "invalid payment token");
   }
@@ -66,7 +66,22 @@ async function chargeStripe(amount, sourceToken) {
   if (!resp.ok) {
     throw new PaymentError("processor_error", "payment processor error", { status: resp.status });
   }
-  return { ok: true };
+  let data;
+  try {
+    data = await resp.json();
+  } catch (_) {
+    throw new PaymentError("processor_error", "invalid processor response");
+  }
+  if (!data || typeof data !== "object") {
+    throw new PaymentError("processor_error", "invalid processor response");
+  }
+  const status = data.status;
+  const paid = data.paid === true;
+  const id = data.id;
+  if (!id || typeof id !== "string" || !(status === "succeeded" || paid === true)) {
+    throw new PaymentError("charge_failed", "charge not successful", { id, status, paid });
+  }
+  return { ok: true, id, status, paid };
 }
 
 function calcTax(amount, region) {
