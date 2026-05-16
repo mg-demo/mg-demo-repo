@@ -34,9 +34,22 @@ function applyCoupon(amount, code) {
 class PaymentError extends Error {
   constructor(code, message, meta) {
     super(message || code);
+    if (Error.captureStackTrace) {
+      Error.captureStackTrace(this, PaymentError);
+    }
     this.name = "PaymentError";
     this.code = code;
-    if (meta) this.meta = meta;
+    if (meta && typeof meta === "object") {
+      const sanitized = {};
+      if (Number.isFinite(meta.status)) sanitized.status = meta.status;
+      if (Object.keys(sanitized).length) this.meta = sanitized;
+      if (meta.cause instanceof Error) {
+        this.cause = meta.cause;
+        if (this.stack && meta.cause.stack) {
+          this.stack += "\nCaused by: " + meta.cause.stack;
+        }
+      }
+    }
   }
 }
 
