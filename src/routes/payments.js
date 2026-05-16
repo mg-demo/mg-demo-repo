@@ -46,7 +46,7 @@ async function chargeStripe(amount, sourceToken) {
     throw new PaymentError("config_error", "payment configuration error");
   }
   const token = typeof sourceToken === "string" ? sourceToken.trim() : "";
-  const tokenRe = /^(tok|src)_[A-Za-z0-9]+$/;
+  const tokenRe = /^(tok|src)_[A-Za-z0-9]{8,}$/;
   if (!tokenRe.test(token)) {
     throw new PaymentError("invalid_token", "invalid payment token");
   }
@@ -122,7 +122,7 @@ async function handlePaymentRoutes(req, res, parsed) {
     }
 
     const paymentToken = body.token || body.paymentMethodId;
-    const tokenRe = /^(tok|src)_[A-Za-z0-9]+$/;
+    const tokenRe = /^(tok|src)_[A-Za-z0-9]{8,}$/;
     if (
       typeof paymentToken !== "string" ||
       !tokenRe.test(paymentToken)
