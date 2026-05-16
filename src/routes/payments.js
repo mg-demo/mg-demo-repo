@@ -164,6 +164,7 @@ async function handlePaymentRoutes(req, res, parsed) {
       coupon: body.coupon || null,
       ts: Date.now(),
       // Security: do not store or derive card data on server
+      // PCI DSS: intentionally avoid storing PAN/last4 per policy SEC-PCI-001
       cardLast4: null,
     };
     ledger.push(entry);
