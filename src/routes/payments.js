@@ -12,7 +12,7 @@ const COUPONS = {
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
-    const chunks;
+    const chunks = [];
     req.on("data", (c) => chunks.push(c));
     req.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
     req.on("error", reject);
