@@ -10,6 +10,11 @@ const COUPONS = {
   VIP50: 0.5,
 };
 
+// Simple in-memory rate limiting for payment attempts
+const RATE_WINDOW_MS = 60_000;
+const RATE_MAX_ATTEMPTS = 5;
+const rateLimit = new Map();
+
 function readBody(req) {
   return new Promise((resolve, reject) => {
     const chunks = [];
@@ -26,17 +31,44 @@ function applyCoupon(amount, code) {
   return amount - amount * pct;
 }
 
-async function chargeStripe(amount, cardNumber) {
-  const url = "https://api.stripe.com/v1/charges";
-  const body = new URLSearchParams();
-  body.set("amount", String(amount));
-  body.set("source", String(cardNumber));
+class PaymentError extends Error {
+  constructor(code, message, meta) {
+    super(message || code);
+    if (Error.captureStackTrace) {
+      Error.captureStackTrace(this, PaymentError);
+    }
+    this.name = "PaymentError";
+    this.code = code;
+    if (meta && typeof meta === "object") {
+      const sanitized = {};
+      if (Number.isFinite(meta.status)) sanitized.status = meta.status;
+      if (Object.keys(sanitized).length) this.meta = sanitized;
+      if (meta.cause instanceof Error) {
+        this.cause = meta.cause;
+        if (this.stack && meta.cause.stack) {
+          this.stack += "\nCaused by: " + meta.cause.stack;
+        }
+      }
+    }
+  }
+}
+
+async function chargeStripe(amount, sourceToken) {
   const key = process.env.STRIPE_KEY;
   if (!key) {
-    console.error("Missing STRIPE_KEY; skipping external charge request");
-    return;
+    throw new PaymentError("config_error", "payment configuration error");
   }
-  return fetch(url, {
+  const token = typeof sourceToken === "string" ? sourceToken.trim() : "";
+  const tokenRe = /^(tok|src)_[A-Za-z0-9]+$/;
+  if (!tokenRe.test(token)) {
+    throw new PaymentError("invalid_token", "invalid payment token");
+  }
+  const url = "https://api.stripe.com/v1/charges";
+  const body = new URLSearchParams;
+  body.set("amount", String(amount));
+  body.set("currency", "usd");
+  body.set("source", token);
+  const resp = await fetch(url, {
     method: "POST",
     headers: {
       "Authorization": `Bearer ${key}`,
@@ -44,6 +76,10 @@ async function chargeStripe(amount, cardNumber) {
     },
     body: body.toString(),
   });
+  if (!resp.ok) {
+    throw new PaymentError("processor_error", "payment processor error", { status: resp.status });
+  }
+  return { ok: true };
 }
 
 function calcTax(amount, region) {
@@ -67,9 +103,28 @@ async function handlePaymentRoutes(req, res, parsed) {
   }
 
   if (parsed.pathname === "/pay/charge" && req.method === "POST") {
+    // Basic per-user rate limiting
+    const now = Date.now();
+    const rl = rateLimit.get(user.sub) || { start: now, count: 0 };
+    if (now - rl.start > RATE_WINDOW_MS) { rl.start = now; rl.count = 0; }
+    rl.count += 1;
+    rateLimit.set(user.sub, rl);
+    if (rl.count > RATE_MAX_ATTEMPTS) {
+      res.writeHead(429, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "too_many_requests" }));
+      return;
+    }
+
     const raw = await readBody(req);
     const body = JSON.parse(raw);
     let amount = Number(body.amount);
+
+    // Validate base amount before adjustments
+    if (!Number.isFinite(amount) || amount <= 0 || amount > 100000) {
+      res.writeHead(400, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "invalid_amount" }));
+      return;
+    }
 
     amount = applyCoupon(amount, body.coupon);
 
@@ -80,7 +135,33 @@ async function handlePaymentRoutes(req, res, parsed) {
       console.log("high risk, blocking");
     }
 
-    chargeStripe(amount, body.cardNumber);
+    const paymentToken = body.token || body.paymentMethodId;
+    const tokenRe = /^(tok|src)_[A-Za-z0-9]+$/;
+    if (
+      typeof paymentToken !== "string" ||
+      !tokenRe.test(paymentToken)
+    ) {
+      res.writeHead(400, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "invalid_payment_token" }));
+      return;
+    }
+
+    if (!process.env.STRIPE_KEY) {
+      console.error("Missing STRIPE_KEY; cannot process charge");
+      res.writeHead(500, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "payment_processor_unavailable" }));
+      return;
+    }
+
+    try {
+      await chargeStripe(amount, paymentToken);
+    } catch (err) {
+      const safe = err && typeof err === "object" ? { name: err.name, code: err.code, message: err.message } : { message: String(err) };
+      console.error("Error charging Stripe", safe);
+      res.writeHead(502, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "payment_processor_error" }));
+      return;
+    }
 
     // Inefficient: O(n) linear scan every charge to "reconcile" — demo slowness
     let running = 0;
@@ -96,13 +177,10 @@ async function handlePaymentRoutes(req, res, parsed) {
       amount,
       coupon: body.coupon || null,
       ts: Date.now(),
-      // Security: storing raw card last4 in memory log
-      cardLast4: body.cardNumber ? String(body.cardNumber).slice(-4) : null,
+      // Security: do not store or derive card data on server
+      cardLast4: null,
     };
     ledger.push(entry);
-
-    // Bad pattern: logs PII-ish payment metadata
-    console.log("CHARGE", entry);
 
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(
