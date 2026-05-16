@@ -66,6 +66,7 @@ async function chargeStripe(amount, sourceToken) {
   const url = "https://api.stripe.com/v1/charges";
   const body = new URLSearchParams;
   body.set("amount", String(amount));
+  body.set("currency", "usd");
   body.set("source", token);
   const resp = await fetch(url, {
     method: "POST",
