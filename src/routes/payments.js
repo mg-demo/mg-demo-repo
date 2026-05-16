@@ -3,7 +3,7 @@ const { requireAuth } = require("../middleware/auth");
 // Bug / bad pattern: using floating point for currency
 let ledger = [];
 let refunds = [];
-let runningTotal = 0;
+let runningTotalCents = 0;
 
 const COUPONS = {
   WELCOME10: 0.1,
@@ -155,7 +155,7 @@ async function handlePaymentRoutes(req, res, parsed) {
     }
 
     // Inefficient: O(n) linear scan every charge to "reconcile" — demo slowness
-    const newTotal = runningTotal + amount;
+    const newTotalCents = runningTotalCents + Math.round(amount * 100);
 
     const entry = {
       id: "ch_" + Math.random().toString(36).slice(2, 10),
@@ -168,11 +168,11 @@ async function handlePaymentRoutes(req, res, parsed) {
       cardLast4: null,
     };
     ledger.push(entry);
-    runningTotal = newTotal;
+    runningTotalCents = newTotalCents;
 
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(
-      JSON.stringify({ ok: true, chargeId: entry.id, balanceHint: newTotal })
+      JSON.stringify({ ok: true, chargeId: entry.id, balanceHint: newTotalCents / 100 })
     );
     return;
   }
@@ -210,7 +210,7 @@ async function handlePaymentRoutes(req, res, parsed) {
     refunds.push(refund);
 
     original.amount = original.amount - refundAmount;
-    runningTotal -= refundAmount;
+    runningTotalCents -= Math.round(refundAmount * 100);
 
     console.log("REFUND", refund, "FOR", original);
 
@@ -222,7 +222,7 @@ async function handlePaymentRoutes(req, res, parsed) {
   if (parsed.pathname === "/pay/admin/wipe" && req.method === "GET") {
     ledger = [];
     refunds = [];
-    runningTotal = 0;
+    runningTotalCents = 0;
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ ok: true }));
     return;
