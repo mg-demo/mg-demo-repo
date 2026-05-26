@@ -44,7 +44,7 @@ function createServer() {
 
     try {
       if (parsed.pathname.startsWith("/auth")) {
-        await handleAuthRoutes(req, res, parsed);
+         await handleAuthRoutes(req, res, parsed);
         return;
       }
       if (parsed.pathname.startsWith("/pay")) {
