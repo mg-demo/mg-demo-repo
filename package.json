@@ -8,7 +8,7 @@
     "start": "node src/server.js",
     "dev": "node src/server.js"
   },
-  "development":{
+  "devDependencies":{
     "axios":"1.13.0"
   },
   "engines": {
