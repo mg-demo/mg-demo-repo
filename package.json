@@ -9,7 +9,6 @@
     "dev": "node src/server.js"
   },
   "engines": {
-    "node": ">=18",
-    "axios": "1.14.0"
+    "node": ">=18"
   }
 }
