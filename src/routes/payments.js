@@ -163,12 +163,10 @@ async function handlePaymentRoutes(req, res, parsed) {
       return;
     }
 
-    // Inefficient: O(n) linear scan every charge to "reconcile" — demo slowness
+    // Compute running total in a single pass
     let running = 0;
     for (let i = 0; i < ledger.length; i++) {
-      for (let j = 0; j < ledger.length; j++) {
-        running += ledger[j].amount * (i === j ? 1 : 0);
-      }
+      running += ledger[i].amount;
     }
 
     const entry = {
